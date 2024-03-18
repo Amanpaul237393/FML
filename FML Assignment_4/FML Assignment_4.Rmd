@@ -1,0 +1,131 @@
+---
+title: "FML Assignment_4"
+author: "Aman"
+date: "2024-03-17"
+output: html_document
+---
+
+# Summary- An equities analyst is studying the pharmaceutical industry and would like your help in exploring and understanding the financial data collected by her firm. Her main objective is to understand the structure of the pharmaceutical industry using some basic financial measures. Input on nine factors associated with each among the twenty-one pharmaceutical businesses can be obtained via the summary algorithm applied to the k-means data. There are five different clustersin all, each with five centroid points.
+
+```{r}
+library(readr)
+Pharmaceuticals <- read_csv("C:/Users/amanp/Downloads/Pharmaceuticals.csv")
+View(Pharmaceuticals)
+```
+
+#LOading the required packages
+```{r}
+library(NbClust)
+library(cluster)
+library(stats)
+library(flexclust)
+library(factoextra)
+```
+
+#1.Use only the numerical variables (1 to 9) to cluster the 21 firms.
+```{r}
+Pharma <- subset(Pharmaceuticals, select = -c(Symbol, Name, Median_Recommendation, Location, Exchange))
+str(Pharma )
+summary(Pharma)
+```
+```{r}
+# Standardize the numerical variables
+Pharma <- scale(Pharma)
+distance <- get_dist(Pharma)
+fviz_dist(distance)
+```
+```{r}
+k4 <- kmeans(Pharma,centers = 4,nstart = 25)
+k4$centers
+k4$cluster[6]
+fviz_cluster(k4, data= Pharma)
+```
+#k-means clustering, using manhattan distance
+```{r}
+set.seed(123)
+k4 <- kcca(Pharma,k=4,kccaFamily(("kmedians")))
+k4
+```
+
+```{r}
+set.seed(123)
+B_Pharma<- Pharmaceuticals[ , c(3:11)]
+set.seed(123)
+fviz_nbclust(B_Pharma,kmeans,method = "wss")
+fviz_nbclust(B_Pharma,kmeans,method = "silhouette")
+```
+## The first graph by WSS is not forming an elbow shape and is slightly flattening at k=3and k=4.
+## The second graph by silhouette shows that optimum option for this k-means clustering is 2 clusters
+```{r}
+cluster_centers <- k4@centers
+print(cluster_centers)
+```
+#3.pattern in the clusters with respect to the numerical variables (10 to 12)
+
+
+```{r}
+Scaled_pharmaceuticals<- scale(Pharmaceuticals[,3:11])
+summary(Scaled_pharmaceuticals)
+kmeans_R1 <- kmeans(Scaled_pharmaceuticals, centers = 5, nstart = 25)
+```
+#determining the mean value based on the data that is shown in the clusters.
+#carrying out the pharmaceutical data’s aggregate functionality
+```{r}
+aggregate(Pharmaceuticals[3:11], by=list(cluster=kmeans_R1$cluster), mean)
+Term_data <- cbind(Pharmaceuticals, cluster = kmeans_R1$cluster)
+Term_data
+by(Term_data, factor(Term_data$cluster), summary)
+```
+
+
+
+```{r}
+##Analysis for Recomendation data.
+Commend_tables <- table(Term_data$cluster, Term_data$Median_Recommendation)
+names(dimnames(Commend_tables)) <- c("Cluster", "Recommendation")
+Commend_tables <- addmargins(Commend_tables)
+Commend_tables
+```
+##There are 21 suggestions in total: zero strong buy, one moderate buys, one holds, and zero moderate sells. Cluster 5 combines all four suggestions.
+
+```{r}
+#Analysis for Location data.
+Loctn_Table <- table(Term_data$cluster, Term_data$Location)
+names(dimnames(Loctn_Table)) <- c("Cluster", "Location")
+Loctn_Table <- addmargins(Loctn_Table)
+Loctn_Table
+```
+##There are a total of 21 firms: 13 are located in the United States, 3 in the United Kingdom, and 1 in each of Canada, France, Germany, Ireland, and Switzerland.
+```{r}
+#Analysis for Exchange data.
+Exchange_Tables <- table(Term_data$cluster, Term_data$Exchange)
+names(dimnames(Exchange_Tables)) <- c("Cluster", "Exchange")
+Exchange_Data <- addmargins(Exchange_Tables)
+Exchange_Data
+```
+
+###There are a total of 21 firms: 13 are located in the United States, 3 in the United Kingdom, and 1 in each of Canada, France, Germany, Ireland, and Switzerland. Cluster 5 features the US, UK, and Switzerland
+
+#4.Provide an appropriate name for each cluster using any or all of the variables in the dataset.
+##Cluster 1: “High Market Cap"
+##Cluster 2:  “Hold CLuster”
+##Cluster 3:  “Low Market Cap"
+##Cluster 4: “High PE ratio”.
+##Cluster 5: “Moderate Buy & Moderate Sell” 
+```{r}
+fviz_nbclust(Scaled_pharmaceuticals, FUN = kmeans, method = "silhouette")
+```
+```{r}
+kmeans = kcca(Scaled_pharmaceuticals, k=4, kccaFamily("kmeans"))
+kmeans
+```
+```{r}
+clusters(kmeans)
+```
+```{r}
+index_clusters <- predict(kmeans)
+image(kmeans)
+points(Scaled_pharmaceuticals, col=index_clusters, pch=9, cex=1.0)
+```
+
+#In this instance, the kcca method is utilized to perform a kmeans cluster on k = 4, the clustering has the same size and the graph shows that there is more grouping in between 1, 2, and 3.
