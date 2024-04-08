@@ -1,0 +1,170 @@
+---
+title: "FML Assignment 5"
+author: "Aman Paul"
+date: "2024-04-03"
+output: html_document
+---
+
+#Summary - The dataset Cereals.csv includes nutritional information, store display, and consumer ratings for 77 breakfast cereals. Firstly we have removed all the missing values and then normalized the data. Applied hierarchical clustering to the data using Euclidean distance to the normalized measurements. We have used Agnes to compare the clustering from single linkage, complete linkage, average linkage, and Ward. Then we have identified the structure of the clusters and on their stability by partioning the data set into A and B and used the cluster centroids from A to assign each record in partition B.Finally based upon the clustering we identified the set of cereals to include in their daily cafeterias that should support a healthy diet in the elementary public schools.
+
+```{r}
+library(readr)
+Cereals_1_ <- read.csv("C:/Users/amanp/Downloads/Cereals (1).csv")
+View(Cereals_1_)
+```
+
+```{r}
+library(stats)
+library(cluster)
+library(caret)
+library(factoextra)
+```
+
+```{r}
+##Removing the missing values from the data
+df <- Cereals_1_
+df <- na.omit(df)
+head(df)
+df
+```
+
+##Data normalization and data scaling
+```{r}
+df <- scale(df[,4:16])
+head(df)
+df
+```
+#1.Applying hierarchical clustering to the data using  euclidean distance to normalize measurements
+```{r}
+#Hierarchical clustering with Euclidean distance
+dist <- dist(df, method = "euclidean")
+H_clustering <- hclust(dist, method = "complete")
+#plot the obtained dendrogram
+plot(H_clustering, cex = 0.7, hang = -1)
+```
+##Using agnes function to perform clustering with single, complete,average, ward linkage.
+```{r}
+#compute with agnes and with different linkage methods
+hc_single <- agnes(df, method = "single")
+hc_complete <- agnes(df, method = "complete")
+hc_average <- agnes(df, method = "average")
+hc_Ward <- agnes(df, method = "ward")
+summary(df)
+```
+
+##Comparing the coefficients for single,complete,average and ward
+```{r}
+print(hc_single$ac)
+print(hc_complete$ac)
+print(hc_average$ac)
+print(hc_Ward$ac)
+pltree(hc_complete, cex=0.6, hang =-1, main = "Dendrogram of agnes")
+```
+# Explanation -From the above output the best value we got is 0.904. Plotting the Dendrogram.
+
+#Using elbow method
+```{r}
+set.seed(123)
+fviz_nbclust(Cereals_1_, FUN = hcut, method = "wss")
+```
+
+#2.Choosing the cluster
+```{r}
+dist <- dist(df, method = "euclidean")
+H_clustering <- hclust(dist, method = "complete")
+#Complete divisive hierarchical clustering
+
+plot(H_clustering, cex=0.6)
+rect.hclust(H_clustering, k=3, border = 1:4)
+
+Cluster1 <- cutree(hc_Ward, k=3)
+dataframe2 <- as.data.frame(cbind(df,Cluster1))
+```
+#Comment- Thus from the above methods we can confirm that the number of cluster ideal for the dataset is 3. Hence the value for k=3
+
+#3.Creating Partitions
+```{r}
+set.seed(123)
+PartitionA <- df[1:50,]
+PartitionB <- df[51:74,]
+```
+
+#Performing hierarchical Clustering,consedering k = 3.
+```{r}
+single <- agnes(scale(PartitionA), method = "single")
+
+complete <- agnes(scale(PartitionA), method = "complete")
+
+average <- agnes(scale(PartitionA), method = "average")
+
+ward <- agnes(scale(PartitionA), method = "ward")
+```
+
+```{r}
+cbind(single=single$ac , complete=complete$ac , average= average$ac , ward= ward$ac)
+pltree(ward, cex = 0.6, hang = -1, main = "Dendogram of Agnes with Partitioned Data (Using Ward)")
+rect.hclust(ward, k = 3, border = 1:4)
+
+cut_2 <- cutree(ward, k = 3)
+
+```
+#Calculating the centeroids
+```{r}
+result <- as.data.frame(cbind(PartitionA, cut_2))
+result[result$cut_2==1,]
+
+c1 <- colMeans(result[result$cut_2==1,])
+result[result$cut_2==2,]
+
+c2 <- colMeans(result[result$cut_2==2,])
+result[result$cut_2==3,]
+
+c3 <- colMeans(result[result$cut_2==3,])
+result[result$cut_2==4,]
+
+c4 <- colMeans(result[result$cut_2==4,])
+
+centroids <- rbind(c1, c2, c3, c4)
+bind <- as.data.frame(rbind(centroids[,-14], PartitionB))
+```
+#Calculating the Distance
+
+```{r}
+D <- dist(bind)
+Matrix_1 <- as.matrix(D)
+
+dataframe1 <- data.frame(data=seq(1,nrow(PartitionB),1), Clusters = rep(0,nrow(PartitionB)))
+for(i in 1:nrow(PartitionB)) 
+{dataframe1[i,2] <- which.min(Matrix_1[i+4, 1:4])}
+dataframe1
+
+cbind(dataframe2$Cluster1[51:74], dataframe1$Clusters)
+table(dataframe2$Cluster1[51:74] == dataframe1$Clusters)
+```
+#Comment on the structure of the clusters and on their stability?
+##The clusters appear to be relatively stable between partitions A and B. Although there was some shifting of data points between clusters in partition B compared to partition A, the overall structure of the clusters remained consistent.
+
+#how consistent the cluster assignments are compared to the assignments based on all the data?
+##Cluster stability was assessed by comparing the cluster assignments between partitions A and B. The clusters were found to be stable with minimal variation in assignments.
+
+#4) The elementary public schools would like to choose a set of Cereals_Data to include in their daily cafeterias.
+```{r}
+HCereals <- Cereals_1_
+HCereals_new <- na.omit(HCereals)
+HClust <- cbind(HCereals_new, Cluster1)
+HClust[HClust$Cluster1==1,]
+HClust[HClust$Cluster1==2,]
+HClust[HClust$Cluster1==3,]
+HClust[HClust$Cluster1==4,]
+```
+
+```{r}
+#Mean ratings to determine the best cluster.
+mean(HClust[HClust$Cluster1==1,"rating"])
+mean(HClust[HClust$Cluster1==2,"rating"])
+mean(HClust[HClust$Cluster1==3,"rating"])
+mean(HClust[HClust$Cluster1==4,"rating"])
+
+```
+#Comment - For selecting the "Healthy cereal" normalization is not nesessary, as the features are already on a similar scale and have comparable ranges. Considering the clustering used it is not sensitive to normalization of data. Thus nozrmalizing the data is not required to find the healthy cereal. However from the result we can say that mean ratings are highest for cluster 1 as 73.84, we can consider cluster 1.
+
